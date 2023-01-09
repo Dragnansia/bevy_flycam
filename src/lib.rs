@@ -28,6 +28,31 @@ impl Default for MovementSettings {
     }
 }
 
+#[derive(Resource)]
+pub struct KeysBindings {
+    pub forward: KeyCode,
+    pub back: KeyCode,
+    pub right: KeyCode,
+    pub left: KeyCode,
+    pub up: KeyCode,
+    pub down: KeyCode,
+    pub toggle_grab_cursor: KeyCode,
+}
+
+impl Default for KeysBindings {
+    fn default() -> Self {
+        Self {
+            forward: KeyCode::W,
+            back: KeyCode::S,
+            right: KeyCode::D,
+            left: KeyCode::A,
+            up: KeyCode::Space,
+            down: KeyCode::LShift,
+            toggle_grab_cursor: KeyCode::Escape,
+        }
+    }
+}
+
 /// A marker component used in queries when you want flycams and not other cameras
 #[derive(Component)]
 pub struct FlyCam;
@@ -72,6 +97,7 @@ fn player_move(
     time: Res<Time>,
     windows: Res<Windows>,
     settings: Res<MovementSettings>,
+    key_bindings: Res<KeysBindings>,
     mut query: Query<&mut Transform, With<FlyCam>>,
 ) {
     if let Some(window) = windows.get_primary() {
@@ -85,12 +111,12 @@ fn player_move(
                 match window.cursor_grab_mode() {
                     CursorGrabMode::None => (),
                     _ => match key {
-                        KeyCode::W => velocity += forward,
-                        KeyCode::S => velocity -= forward,
-                        KeyCode::A => velocity -= right,
-                        KeyCode::D => velocity += right,
-                        KeyCode::Space => velocity += Vec3::Y,
-                        KeyCode::LShift => velocity -= Vec3::Y,
+                        k if k == &key_bindings.forward => velocity += forward,
+                        k if k == &key_bindings.back => velocity -= forward,
+                        k if k == &key_bindings.left => velocity -= right,
+                        k if k == &key_bindings.right => velocity += right,
+                        k if k == &key_bindings.up => velocity += Vec3::Y,
+                        k if k == &key_bindings.down => velocity -= Vec3::Y,
                         _ => (),
                     },
                 }
@@ -141,9 +167,13 @@ fn player_look(
     }
 }
 
-fn cursor_grab(keys: Res<Input<KeyCode>>, mut windows: ResMut<Windows>) {
+fn cursor_grab(
+    keys: Res<Input<KeyCode>>,
+    key_bindings: Res<KeysBindings>,
+    mut windows: ResMut<Windows>,
+) {
     if let Some(window) = windows.get_primary_mut() {
-        if keys.just_pressed(KeyCode::Escape) {
+        if keys.just_pressed(key_bindings.toggle_grab_cursor) {
             toggle_grab_cursor(window);
         }
     } else {
@@ -157,6 +187,7 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InputState>()
             .init_resource::<MovementSettings>()
+            .init_resource::<KeysBindings>()
             .add_startup_system(setup_player)
             .add_startup_system(initial_grab_cursor)
             .add_system(player_move)
@@ -171,6 +202,7 @@ impl Plugin for NoCameraPlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InputState>()
             .init_resource::<MovementSettings>()
+            .init_resource::<KeysBindings>()
             .add_startup_system(initial_grab_cursor)
             .add_system(player_move)
             .add_system(player_look)
